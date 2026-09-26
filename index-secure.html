@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Verifier</title>
+<style>
+  :root{
+    --bg:#0f1220;
+    --card:#171b2e;
+    --border:#2a3050;
+    --text:#e9ecf7;
+    --muted:#9aa3c7;
+    --accent:#6d7bff;
+    --ok:#3ddc97;
+    --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(circle at 20% 20%, #1b2040, var(--bg) 60%);
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    color:var(--text);
+    padding:24px;
+  }
+  .card{
+    width:100%;
+    max-width:420px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:32px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4);
+  }
+  h1{
+    font-size:1.4rem;
+    margin:0 0 6px;
+    text-align:center;
+  }
+  p.sub{
+    color:var(--muted);
+    text-align:center;
+    font-size:0.9rem;
+    margin:0 0 28px;
+  }
+  label{
+    display:block;
+    font-size:0.85rem;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  input{
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#0f1329;
+    color:var(--text);
+    font-size:1rem;
+    margin-bottom:18px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  input:focus{border-color:var(--accent);}
+  button{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:10px;
+    background:var(--accent);
+    color:white;
+    font-size:1rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity .15s;
+  }
+  button:hover{opacity:0.9;}
+  button:disabled{opacity:0.6; cursor:not-allowed;}
+  #result{
+    margin-top:22px;
+    text-align:center;
+    font-size:1.6rem;
+    font-weight:700;
+    min-height:1.8em;
+  }
+  #result.ok{color:var(--ok);}
+  #result.bad{color:var(--bad);}
+  #result.idle{color:var(--muted); font-size:0.95rem; font-weight:400;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Player Code Verifier</h1>
+  <p class="sub">Enter the player ID and the code you were given</p>
+
+  <label for="playerId">Player ID</label>
+  <input type="text" id="playerId" placeholder="e.g. 93709961" inputmode="numeric" autocomplete="off">
+
+  <label for="expectedCode">Code</label>
+  <input type="text" id="expectedCode" placeholder="e.g. EGET" autocomplete="off">
+
+  <button id="verifyBtn" onclick="verify()">Verify</button>
+
+  <div id="result" class="idle">Result will appear here</div>
+</div>
+
+<script>
+  // Point this at your deployed Cloudflare Worker URL, e.g.:
+  // "https://code-verifier.yourname.workers.dev"
+  const WORKER_URL = "https://YOUR-WORKER-SUBDOMAIN.workers.dev";
+
+  async function verify() {
+    const idInput = document.getElementById("playerId").value.trim();
+    const codeInput = document.getElementById("expectedCode").value.trim();
+    const resultEl = document.getElementById("result");
+    const btn = document.getElementById("verifyBtn");
+
+    if (!idInput || !codeInput) {
+      resultEl.textContent = "Please fill in both fields";
+      resultEl.className = "idle";
+      return;
+    }
+
+    btn.disabled = true;
+    resultEl.textContent = "Checking...";
+    resultEl.className = "idle";
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: idInput, code: codeInput }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        resultEl.textContent = data.error;
+        resultEl.className = "bad";
+      } else {
+        resultEl.textContent = data.match ? "true" : "false";
+        resultEl.className = data.match ? "ok" : "bad";
+      }
+    } catch (err) {
+      resultEl.textContent = "Could not reach server";
+      resultEl.className = "bad";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById("expectedCode").addEventListener("keydown", function(e){
+    if (e.key === "Enter") verify();
+  });
+</script>
+
+</body>
+</html>
